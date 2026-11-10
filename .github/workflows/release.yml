@@ -1,0 +1,47 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build universal app
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then export VERSION="${GITHUB_REF_NAME#v}"; fi
+          ./build.sh package
+
+      - name: Smoke-test the installer
+        run: HOSTPULSE_ZIP=build/HostPulse.zip HOSTPULSE_DIR="$RUNNER_TEMP/apps" HOSTPULSE_NO_LAUNCH=1 ./install.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HostPulse
+          path: build/HostPulse.zip
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          (cd build && shasum -a 256 HostPulse.zip > HostPulse.zip.sha256)
+          gh release create "$GITHUB_REF_NAME" build/HostPulse.zip build/HostPulse.zip.sha256 \
+            --title "HostPulse $GITHUB_REF_NAME" \
+            --notes "Install or update with:
+
+          \`\`\`sh
+          curl -fsSL https://raw.githubusercontent.com/kkyusuftk/hostpulse/main/install.sh | bash
+          \`\`\`
+
+          Universal build (Apple Silicon + Intel), macOS 14 or newer. The app is not notarized by Apple; the install script clears the quarantine flag so Gatekeeper doesn't block it." \
+            --generate-notes

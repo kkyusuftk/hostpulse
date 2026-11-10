@@ -48,6 +48,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .receive(on: RunLoop.main)
             .sink { DesktopPanel.shared.setVisible($0) }
             .store(in: &cancellables)
+        monitor.$settings.map(\.enabledHosts.count).removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { DesktopPanel.shared.resize(hosts: $0) }
+            .store(in: &cancellables)
 
         monitor.start()
 
@@ -232,7 +236,7 @@ enum AppWindows {
     }
 }
 
-/// A borderless panel pinned to the desktop that shows the primary host live,
+/// A borderless panel pinned to the desktop that shows every host live,
 /// for when macOS refreshes the real widget less often than you'd like.
 @MainActor
 final class DesktopPanel {
@@ -248,9 +252,23 @@ final class DesktopPanel {
         }
     }
 
+    /// Grows or shrinks the panel to fit the hosts, keeping its top-left corner in place.
+    func resize(hosts: Int) {
+        guard let panel else { return }
+        let size = DesktopWidgetView.size(hosts: hosts)
+        let old = panel.frame
+        guard old.size != size else { return }
+        var frame = NSRect(x: old.minX, y: old.maxY - size.height, width: size.width, height: size.height)
+        if let visible = (panel.screen ?? NSScreen.main)?.visibleFrame {
+            frame.origin.x = min(max(frame.minX, visible.minX), max(visible.maxX - size.width, visible.minX))
+            frame.origin.y = max(min(frame.minY, visible.maxY - size.height), visible.minY)
+        }
+        panel.setFrame(frame, display: true)
+    }
+
     private func show() {
         guard panel == nil else { return }
-        let size = NSSize(width: 364, height: 382)
+        let size = DesktopWidgetView.size(hosts: Monitor.shared.settings.enabledHosts.count)
         let p = NSPanel(contentRect: NSRect(origin: .zero, size: size),
                         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         p.isOpaque = false
@@ -270,6 +288,7 @@ final class DesktopPanel {
         p.setFrameAutosaveName("HostPulse.desktop")
         p.orderFrontRegardless()
         panel = p
+        resize(hosts: Monitor.shared.settings.enabledHosts.count)
     }
 }
 

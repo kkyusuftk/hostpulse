@@ -86,10 +86,13 @@ Apple budgets roughly 40–70 widget reloads a day, so the widget may lag a few
 minutes behind. The header always says when the reading was taken. Anything
 that needs to be live updates on every poll (default 10 s):
 
-- the **menu bar** item and popover
+- the **menu bar** item and popover. The popover is a compact list: one row per
+  machine with its name, hardware (model, chip, cores) and RAM use. Click a row
+  for the full card in the dashboard.
 - the **dashboard** window
-- the **Live desktop widget**: a desktop-level panel with the large layout. Turn
-  it on from the popover or Settings → General. Drag it anywhere; right-click for
+- the **Live desktop widget**: a desktop-level panel with one large card per
+  machine, up to three per row; it grows as you add hosts. Turn it on from the
+  popover or Settings → General. Drag it anywhere; right-click for
   options.
 
 Settings → General → "Last widget refresh" shows when macOS last redrew the
